@@ -1,0 +1,17 @@
+[general]
+name=Outfall UK
+qgisMinimumVersion=3.28
+qgisMaximumVersion=4.99
+description=Bathing-water quality across the UK — is it safe to swim? Official ratings and pollution-risk forecasts on your map.
+about=Outfall UK loads every designated bathing water in England, Wales, Scotland and Northern Ireland onto your map, coloured by its official annual quality classification (Excellent, Good, Sufficient, Poor) or — where published — today's short-term pollution-risk forecast. Data comes straight from the four regulators, free and keyless: the Environment Agency (England) and Natural Resources Wales via the DEFRA data-services platform, the Scottish Environment Protection Agency (SEPA), and the Department of Agriculture, Environment and Rural Affairs (DAERA, Northern Ireland). Toggle nations on and off, and click any site to see its rating, latest risk, responsible operator and a link to its official profile. Built on the same engine as the Wake (marine vessels), Contrail (aircraft) and Zenith (satellites) live-tracking plugins.
+version=0.1.0
+author=Peter Cotroneo
+email=peter.cotroneo.qgis@gmail.com
+tracker=https://github.com/PeterCotroneo/Outfall-UK/issues
+repository=https://github.com/PeterCotroneo/Outfall-UK
+homepage=https://github.com/PeterCotroneo/Outfall-UK
+category=Plugins
+icon=icon.svg
+experimental=False
+deprecated=False
+tags=bathing water,water quality,swimming,pollution,sewage,beach,coast,rivers,environment,uk,defra,sepa,daera,nrw

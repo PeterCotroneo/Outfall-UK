@@ -1,0 +1,229 @@
+"""Outfall UK — main plugin class.
+
+A dock panel that loads every designated UK bathing water onto the map, coloured
+by its official annual quality classification or today's short-term pollution-risk
+forecast. Data is fetched from the four national regulators asynchronously and
+merged into one layer you can filter by nation. Click a site to see its rating,
+risk, operator and a link to its official profile.
+"""
+
+import os
+
+from qgis.PyQt.QtCore import Qt, QTimer
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import (
+    QAction, QDockWidget, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
+    QCheckBox, QPushButton, QGroupBox, QPlainTextEdit,
+)
+from qgis.core import QgsMessageLog, Qgis
+from qgis.gui import QgsCollapsibleGroupBox
+
+from .providers import SOURCES
+from .sites import SiteStore, MODE_RATING, MODE_RISK
+from ._debug import dbg, add_sink, clear_sinks
+
+REFRESH_MS = 30 * 60 * 1000   # re-fetch every half hour (forecasts update daily)
+plugin_dir = os.path.dirname(__file__)
+
+
+class OutfallPlugin:
+    def __init__(self, iface):
+        self.iface = iface
+        self.action = None
+        self.dock = None
+        self.store = SiteStore()
+        self.sources = {}          # id -> SiteSource instance
+        self.checks = {}           # id -> QCheckBox
+        self.timer = None
+        self.cbo_mode = None
+        self.lbl_status = None
+        self.log_view = None
+        self._loaded_once = False
+
+    # --- plugin lifecycle ------------------------------------------------
+    def initGui(self):
+        icon = QIcon(os.path.join(plugin_dir, "icon.svg"))
+        self.action = QAction(icon, "Outfall UK", self.iface.mainWindow())
+        self.action.setCheckable(True)
+        self.action.toggled.connect(self._toggle_dock)
+        self.iface.addToolBarIcon(self.action)
+        self.iface.addPluginToMenu("Outfall UK", self.action)
+
+    def unload(self):
+        clear_sinks()
+        self.log_view = None
+        if self.timer is not None:
+            self.timer.stop()
+            self.timer = None
+        for src in self.sources.values():
+            try:
+                src.stop()
+            except Exception as exc:  # noqa: BLE001
+                QgsMessageLog.logMessage(
+                    f"stop: {exc}", "Outfall UK", Qgis.MessageLevel.Warning)
+        self.sources.clear()
+        self.store.remove_layer()
+        if self.dock is not None:
+            self.iface.removeDockWidget(self.dock)
+            self.dock.deleteLater()
+            self.dock = None
+        if self.action is not None:
+            self.iface.removeToolBarIcon(self.action)
+            self.iface.removePluginMenu("Outfall UK", self.action)
+            self.action = None
+
+    def _toggle_dock(self, checked):
+        if checked:
+            if self.dock is None:
+                self.dock = self._build_dock()
+                self.iface.addDockWidget(
+                    Qt.DockWidgetArea.RightDockWidgetArea, self.dock)
+                self.iface.mainWindow().resizeDocks(
+                    [self.dock], [430], Qt.Orientation.Horizontal)
+            self.dock.show()
+            if not self._loaded_once:
+                self._loaded_once = True
+                self._load()
+        elif self.dock is not None:
+            self.dock.hide()
+
+    # --- UI --------------------------------------------------------------
+    def _build_dock(self):
+        dock = QDockWidget("Outfall UK", self.iface.mainWindow())
+        dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea
+            | Qt.DockWidgetArea.RightDockWidgetArea)
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+
+        intro = QLabel(
+            "Designated bathing waters across the UK, coloured by their official "
+            "water-quality rating — is it safe to swim? Click a site for detail.")
+        intro.setWordWrap(True)
+        layout.addWidget(intro)
+
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(QLabel("Colour by:"))
+        self.cbo_mode = QComboBox()
+        self.cbo_mode.addItem("Annual rating", MODE_RATING)
+        self.cbo_mode.addItem("Pollution risk (today)", MODE_RISK)
+        self.cbo_mode.currentIndexChanged.connect(self._on_mode_changed)
+        mode_row.addWidget(self.cbo_mode, 1)
+        layout.addLayout(mode_row)
+
+        nat_box = QGroupBox("Nations")
+        nat_layout = QVBoxLayout(nat_box)
+        for cls in SOURCES:
+            cb = QCheckBox(cls.nation)
+            cb.setChecked(True)
+            cb.toggled.connect(
+                lambda on, cid=cls.id: self._on_nation_toggled(cid, on))
+            self.checks[cls.id] = cb
+            nat_layout.addWidget(cb)
+        layout.addWidget(nat_box)
+
+        self.btn_refresh = QPushButton("Refresh")
+        self.btn_refresh.clicked.connect(self._load)
+        layout.addWidget(self.btn_refresh)
+
+        self.lbl_status = QLabel("Idle")
+        self.lbl_status.setWordWrap(True)
+        layout.addWidget(self.lbl_status)
+
+        note = QLabel(
+            "Ratings and forecasts come from the Environment Agency, Natural "
+            "Resources Wales, SEPA and DAERA. Short-term risk forecasts are "
+            "published for England and Wales in the bathing season.")
+        note.setWordWrap(True)
+        note.setStyleSheet("color: gray;")
+        layout.addWidget(note)
+
+        log_box = QgsCollapsibleGroupBox("Activity Log")
+        log_box.setCollapsed(True)
+        log_layout = QVBoxLayout(log_box)
+        self.log_view = QPlainTextEdit()
+        self.log_view.setReadOnly(True)
+        self.log_view.setMaximumBlockCount(500)
+        self.log_view.setMinimumHeight(110)
+        self.log_view.setPlaceholderText("Activity appears here while loading.")
+        log_layout.addWidget(self.log_view)
+        btn_clear = QPushButton("Clear log")
+        btn_clear.clicked.connect(self.log_view.clear)
+        log_layout.addWidget(btn_clear)
+        layout.addWidget(log_box)
+        layout.addStretch(1)
+
+        clear_sinks()
+        add_sink(self._log_line)
+
+        dock.setWidget(panel)
+        return dock
+
+    def _log_line(self, line):
+        if self.log_view is not None:
+            self.log_view.appendPlainText(line)
+
+    # --- loading ---------------------------------------------------------
+    def _load(self):
+        self.store.ensure_layer()
+        for cls in SOURCES:
+            if not self.checks or self.checks[cls.id].isChecked():
+                self._start_source(cls)
+        self._ensure_timer()
+        self._update_status("Loading…")
+
+    def _start_source(self, cls):
+        prev = self.sources.pop(cls.id, None)
+        if prev is not None:
+            prev.stop()
+        src = cls()
+        src.sites_update.connect(self._on_sites)
+        src.status_changed.connect(self._update_status)
+        src.error.connect(self._on_error)
+        self.sources[cls.id] = src
+        src.start()
+
+    def _ensure_timer(self):
+        if self.timer is None:
+            self.timer = QTimer()
+            self.timer.setInterval(REFRESH_MS)
+            self.timer.timeout.connect(self._load)
+            self.timer.start()
+
+    def _on_sites(self, source_id, sites):
+        self.store.set_sites(source_id, sites)
+        self._update_status()
+
+    def _on_error(self, text):
+        dbg(f"Error: {text}")
+        self._update_status(f"Error: {text}")
+
+    def _on_mode_changed(self):
+        self.store.set_mode(self.cbo_mode.currentData())
+
+    def _on_nation_toggled(self, source_id, on):
+        if on:
+            cls = next((c for c in SOURCES if c.id == source_id), None)
+            if cls is not None:
+                self.store.ensure_layer()
+                self._start_source(cls)
+        else:
+            src = self.sources.pop(source_id, None)
+            if src is not None:
+                src.stop()
+            self.store.clear_source(source_id)
+            self._update_status()
+
+    def _update_status(self, text=None):
+        if self.lbl_status is None:
+            return
+        total = self.store.count()
+        poor = self.store.count_where("rating", "Poor")
+        risk = self.store.count_where("risk", "Increased risk")
+        parts = [f"{total} bathing waters"]
+        if poor:
+            parts.append(f"{poor} rated Poor")
+        if risk:
+            parts.append(f"{risk} at increased risk today")
+        summary = " · ".join(parts)
+        self.lbl_status.setText(f"{text}\n{summary}" if text else summary)
