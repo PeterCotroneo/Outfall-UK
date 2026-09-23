@@ -1,9 +1,16 @@
 # Outfall UK
 
-**Is it safe to swim?** Outfall UK loads every designated bathing water in
-**England, Wales, Scotland and Northern Ireland** onto your QGIS map, coloured by
-its official water-quality rating — so you can see the state of the whole coast
-(and inland bathing waters) at a glance, and click any site for detail.
+**Is it safe to swim?** Outfall UK brings the UK's bathing-water and sewage-spill
+data into QGIS in two layers:
+
+1. **Bathing waters** — every designated bathing water in **England, Wales,
+   Scotland and Northern Ireland**, coloured by its official water-quality rating.
+2. **Live storm overflows** — the sewage overflows **discharging right now** (or
+   recently), near-real-time from every English and Welsh water company plus
+   Scottish Water.
+
+So you can see the state of the whole coast (and inland bathing waters) at a
+glance, and click any site or overflow for detail.
 
 It is built on the same engine as a family of live-tracking QGIS plugins — a
 pluggable data-source layer, a merged map layer, categorised rendering and
@@ -16,14 +23,19 @@ identify — but where those stream moving things, Outfall UK monitors places:
 
 ![Outfall UK: every UK bathing water, coloured by its annual quality rating](docs/img/01-uk-overview.png)
 
+*Left: bathing waters coloured by annual rating. Right: live storm overflows — red discharging now, amber recently discharged, grey monitor offline.*
+
+![Outfall UK live storm overflows across the UK](docs/img/02-live-spills.png)
+
 ## Features
 
 - **Whole-UK coverage** — ~700 designated bathing waters across all four nations, from one panel.
+- **Live sewage spills** — a second layer showing storm overflows **discharging now** (red), **recently discharged** (amber) or **offline** (grey), near-real-time (within about an hour) from all English and Welsh water companies and Scottish Water — the same feeds behind the [National Storm Overflow Hub](https://www.streamwaterdata.co.uk/pages/the-national-storm-overflow-hub).
 - **Free and keyless** — official open data, no account or API key.
-- **Colour by rating or risk** — switch between the **annual classification** (Excellent, Good, Sufficient, Poor) and, where published, **today's short-term pollution-risk forecast** (normal vs increased risk).
+- **Colour by rating or risk** — switch bathing waters between the **annual classification** (Excellent, Good, Sufficient, Poor) and, where published, **today's short-term pollution-risk forecast** (normal vs increased risk).
 - **Toggle nations** — show or hide England, Wales, Scotland and Northern Ireland independently.
-- **Click for detail** — Identify any site for its rating, latest risk, responsible operator and a link to its official profile page.
-- **Refreshes** — reloads on demand and every half hour, so in-season risk forecasts stay current.
+- **Click for detail** — Identify any site for its rating, latest risk, operator and profile link; identify any overflow for its status, company and receiving watercourse.
+- **Refreshes** — reloads on demand and every half hour, so live spill status and in-season risk forecasts stay current.
 
 ## Data sources
 
@@ -43,6 +55,26 @@ classification only. Ratings are the official classifications calculated from up
 to four years of monitoring; they are not a live measurement of the water in
 front of you. Always check on-site signage before bathing.
 
+### Live storm overflows
+
+The **live storm overflows** layer draws near-real-time Event Duration Monitoring
+(EDM) data from the water companies' open ArcGIS "Stream" feeds — the same data
+behind Water UK's National Storm Overflow Hub:
+
+| Companies | Coverage |
+|---|---|
+| Anglian, Northumbrian, Severn Trent, Southern, Thames, United Utilities, Wessex, Yorkshire, South West | England |
+| Welsh Water (Dŵr Cymru) | Wales |
+| Scottish Water | Scotland |
+
+Companies aim to report a spill within about an hour of an overflow starting.
+This is near-real-time operational data that has **not** been through the
+Environment Agency's regulatory audit; treat it as indicative. Northern Ireland
+(NI Water) does not currently publish a comparable live feed, so it is not
+included in the spills layer. The layer shows overflows that are discharging now,
+discharged recently (where the company reports it), or whose monitor is offline —
+not every monitored outfall.
+
 ## Install
 
 1. Clone this repository (or use **Code → Download ZIP** on GitHub).
@@ -55,14 +87,18 @@ front of you. Always check on-site signage before bathing.
 1. Open the **Outfall UK** panel — every UK bathing water loads onto the map.
 2. Use **Colour by** to switch between the annual rating and today's pollution risk.
 3. Tick or untick a **nation** to show or hide it.
-4. **Click** a site to see its rating, risk, operator and a link to its official profile.
+4. Tick **Show overflows discharging now** to add the live storm-overflow layer; the panel reports how many are discharging now, recently, or offline.
+5. **Click** a site or overflow to see its detail — bathing waters show rating, risk, operator and profile link; overflows show status, company and receiving watercourse.
 
 ## Credits
 
 Contains public sector information from the Environment Agency, Natural Resources
 Wales, the Scottish Environment Protection Agency and the Department of
 Agriculture, Environment and Rural Affairs, licensed under the Open Government
-Licence v3.0.
+Licence v3.0. Storm-overflow data © the respective water companies (Anglian,
+Northumbrian, Severn Trent, Southern, Thames, United Utilities, Wessex, Yorkshire,
+South West, Welsh Water and Scottish Water), published via the Water UK Stream
+programme.
 
 ## License
 

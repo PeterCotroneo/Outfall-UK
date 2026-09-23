@@ -19,7 +19,9 @@ from qgis.core import QgsMessageLog, Qgis
 from qgis.gui import QgsCollapsibleGroupBox
 
 from .providers import SOURCES
+from .providers.spills import spill_sources
 from .sites import SiteStore, MODE_RATING, MODE_RISK
+from .spills import SpillStore
 from ._debug import dbg, add_sink, clear_sinks
 
 REFRESH_MS = 30 * 60 * 1000   # re-fetch every half hour (forecasts update daily)
@@ -32,11 +34,15 @@ class OutfallPlugin:
         self.action = None
         self.dock = None
         self.store = SiteStore()
-        self.sources = {}          # id -> SiteSource instance
+        self.spill_store = SpillStore()
+        self.sources = {}          # id -> SiteSource instance (bathing waters)
+        self.spill_srcs = {}       # id -> StreamSpillSource instance
         self.checks = {}           # id -> QCheckBox
         self.timer = None
         self.cbo_mode = None
+        self.chk_spills = None
         self.lbl_status = None
+        self.lbl_spills = None
         self.log_view = None
         self._loaded_once = False
 
@@ -55,14 +61,16 @@ class OutfallPlugin:
         if self.timer is not None:
             self.timer.stop()
             self.timer = None
-        for src in self.sources.values():
+        for src in list(self.sources.values()) + list(self.spill_srcs.values()):
             try:
                 src.stop()
             except Exception as exc:  # noqa: BLE001
                 QgsMessageLog.logMessage(
                     f"stop: {exc}", "Outfall UK", Qgis.MessageLevel.Warning)
         self.sources.clear()
+        self.spill_srcs.clear()
         self.store.remove_layer()
+        self.spill_store.remove_layer()
         if self.dock is not None:
             self.iface.removeDockWidget(self.dock)
             self.dock.deleteLater()
@@ -122,6 +130,17 @@ class OutfallPlugin:
             nat_layout.addWidget(cb)
         layout.addWidget(nat_box)
 
+        spill_box = QGroupBox("Live storm overflows (sewage spills)")
+        spill_layout = QVBoxLayout(spill_box)
+        self.chk_spills = QCheckBox("Show overflows discharging now")
+        self.chk_spills.toggled.connect(self._on_spills_toggled)
+        spill_layout.addWidget(self.chk_spills)
+        self.lbl_spills = QLabel("")
+        self.lbl_spills.setWordWrap(True)
+        self.lbl_spills.setStyleSheet("color: gray;")
+        spill_layout.addWidget(self.lbl_spills)
+        layout.addWidget(spill_box)
+
         self.btn_refresh = QPushButton("Refresh")
         self.btn_refresh.clicked.connect(self._load)
         layout.addWidget(self.btn_refresh)
@@ -169,8 +188,22 @@ class OutfallPlugin:
         for cls in SOURCES:
             if not self.checks or self.checks[cls.id].isChecked():
                 self._start_source(cls)
+        if self.chk_spills is not None and self.chk_spills.isChecked():
+            self._load_spills()
         self._ensure_timer()
         self._update_status("Loading…")
+
+    def _load_spills(self):
+        self.spill_store.ensure_layer()
+        for src in spill_sources():
+            prev = self.spill_srcs.pop(src.id, None)
+            if prev is not None:
+                prev.stop()
+            src.sites_update.connect(self._on_spills)
+            src.status_changed.connect(self._update_status)
+            src.error.connect(self._on_error)
+            self.spill_srcs[src.id] = src
+            src.start()
 
     def _start_source(self, cls):
         prev = self.sources.pop(cls.id, None)
@@ -194,6 +227,21 @@ class OutfallPlugin:
         self.store.set_sites(source_id, sites)
         self._update_status()
 
+    def _on_spills(self, source_id, spills):
+        self.spill_store.set_spills(source_id, spills)
+        self._update_status()
+
+    def _on_spills_toggled(self, on):
+        if on:
+            self._load_spills()
+            self._ensure_timer()
+        else:
+            for src in self.spill_srcs.values():
+                src.stop()
+            self.spill_srcs.clear()
+            self.spill_store.remove_layer()
+        self._update_status()
+
     def _on_error(self, text):
         dbg(f"Error: {text}")
         self._update_status(f"Error: {text}")
@@ -215,6 +263,7 @@ class OutfallPlugin:
             self._update_status()
 
     def _update_status(self, text=None):
+        self._update_spill_status()
         if self.lbl_status is None:
             return
         total = self.store.count()
@@ -227,3 +276,15 @@ class OutfallPlugin:
             parts.append(f"{risk} at increased risk today")
         summary = " · ".join(parts)
         self.lbl_status.setText(f"{text}\n{summary}" if text else summary)
+
+    def _update_spill_status(self):
+        if self.lbl_spills is None:
+            return
+        if self.chk_spills is None or not self.chk_spills.isChecked():
+            self.lbl_spills.setText("")
+            return
+        now = self.spill_store.count_state("Discharging")
+        recent = self.spill_store.count_state("Recently discharged")
+        offline = self.spill_store.count_state("Offline")
+        self.lbl_spills.setText(
+            f"{now} discharging now · {recent} recently · {offline} offline")
