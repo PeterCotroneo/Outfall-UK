@@ -85,8 +85,9 @@ _SPILLS_HTML = (
     "Scotland — Scottish Water."
     "<br/><br/>"
     "<b>What the colours mean</b><br/>"
-    "Red — discharging now · Amber — recently discharged (where reported) · "
-    "Grey — monitor offline."
+    "Red — discharging now · Orange — recently discharged (last 48h) · "
+    "Green — monitored, not discharging · Grey — monitor offline · "
+    "Dark grey — no data."
     "<br/><br/>"
     '<p style="color:gray">This is near-real-time operational data that has '
     "<b>not</b> been through the Environment Agency's regulatory audit — treat "

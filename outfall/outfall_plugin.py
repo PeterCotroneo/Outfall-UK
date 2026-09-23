@@ -22,7 +22,7 @@ from qgis.gui import QgsCollapsibleGroupBox
 from .providers import SOURCES
 from .providers.spills import spill_sources
 from .sites import SiteStore, MODE_RATING, MODE_RISK
-from .spills import SpillStore
+from .spills import SpillStore, STATE_COLORS
 from .sources_info import nation_html, spills_html
 from ._debug import dbg, add_sink, clear_sinks
 
@@ -43,6 +43,7 @@ class OutfallPlugin:
         self.timer = None
         self.cbo_mode = None
         self.chk_spills = None
+        self.state_checks = {}
         self.lbl_status = None
         self.lbl_spills = None
         self.log_view = None
@@ -144,7 +145,7 @@ class OutfallPlugin:
         spill_box = QGroupBox("Live storm overflows (sewage spills)")
         spill_layout = QVBoxLayout(spill_box)
         spill_row = QHBoxLayout()
-        self.chk_spills = QCheckBox("Show overflows discharging now")
+        self.chk_spills = QCheckBox("Show storm overflows")
         self.chk_spills.toggled.connect(self._on_spills_toggled)
         spill_row.addWidget(self.chk_spills, 1)
         spill_info = QToolButton()
@@ -154,6 +155,19 @@ class OutfallPlugin:
         spill_info.clicked.connect(lambda _=False: self._show_info(*spills_html()))
         spill_row.addWidget(spill_info, 0)
         spill_layout.addLayout(spill_row)
+
+        # per-state filter (like the SAS map): one checkbox per discharge state
+        self.state_checks = {}
+        for state, color in STATE_COLORS:
+            cb = QCheckBox(state)
+            cb.setChecked(True)
+            cb.setEnabled(False)
+            cb.setStyleSheet(f"QCheckBox {{ color: {color}; }}")
+            cb.toggled.connect(
+                lambda on, st=state: self.spill_store.set_state_visible(st, on))
+            self.state_checks[state] = cb
+            spill_layout.addWidget(cb)
+
         self.lbl_spills = QLabel("")
         self.lbl_spills.setWordWrap(True)
         self.lbl_spills.setStyleSheet("color: gray;")
@@ -264,6 +278,8 @@ class OutfallPlugin:
         self._update_status()
 
     def _on_spills_toggled(self, on):
+        for cb in self.state_checks.values():
+            cb.setEnabled(on)
         if on:
             self._load_spills()
             self._ensure_timer()
@@ -315,8 +331,8 @@ class OutfallPlugin:
         if self.chk_spills is None or not self.chk_spills.isChecked():
             self.lbl_spills.setText("")
             return
+        total = self.spill_store.count()
         now = self.spill_store.count_state("Discharging")
         recent = self.spill_store.count_state("Recently discharged")
-        offline = self.spill_store.count_state("Offline")
         self.lbl_spills.setText(
-            f"{now} discharging now · {recent} recently · {offline} offline")
+            f"{total} overflows · {now} discharging now · {recent} recent")

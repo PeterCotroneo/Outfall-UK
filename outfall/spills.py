@@ -1,8 +1,9 @@
-"""Live storm-overflow layer: merge spill points from every water company and
-render them by discharge state.
+"""Live storm-overflow layer: merge outfalls from every water company and render
+them by discharge state, like the SAS Live Sewage Map.
 
-Like the bathing-water store, this keeps records keyed by source (company) and
-rebuilds a memory layer whenever a company loads, refreshes, or is switched off.
+Keeps records keyed by source (company) and rebuilds a memory layer whenever a
+company loads, refreshes, or is switched off. Individual states can be shown or
+hidden (the panel's filter) without refetching.
 """
 
 import os
@@ -15,15 +16,16 @@ from qgis.core import (
     QgsCategorizedSymbolRenderer, QgsRendererCategory, QgsMessageLog, Qgis,
 )
 
-LAYER_NAME = "Outfall UK — Live Storm Overflows"
+LAYER_NAME = "Outfall UK — Storm Overflows"
 _DROP_SVG = os.path.join(os.path.dirname(__file__), "drop.svg")
 
-# Discharge state -> colour. Red = spilling now, amber = recently stopped,
-# grey = monitor offline.
+# Discharge state -> colour, in legend order (mirrors the SAS Live Sewage Map).
 STATE_COLORS = [
-    ("Discharging", "#d73027"),
-    ("Recently discharged", "#fdae61"),
-    ("Offline", "#9e9e9e"),
+    ("Discharging", "#d7191c"),          # red — spilling now
+    ("Recently discharged", "#fdae61"),  # orange — stopped in last 48h
+    ("Not discharging", "#1a9641"),      # green — monitored, dry
+    ("Offline", "#9e9e9e"),              # grey — monitor offline
+    ("No Data", "#4d4d4d"),              # dark grey — status unknown
 ]
 
 _FIELDS = [
@@ -50,6 +52,7 @@ class SpillStore:
     def __init__(self):
         self._layer = None
         self._by_company = {}   # source id -> list of spill dicts
+        self._visible = {state for state, _c in STATE_COLORS}
 
     # --- layer lifecycle -------------------------------------------------
     def ensure_layer(self):
@@ -129,20 +132,37 @@ class SpillStore:
         self._layer.updateExtents()
         self._layer.triggerRepaint()
 
-    # --- styling ---------------------------------------------------------
+    # --- styling / filter ------------------------------------------------
+    def set_state_visible(self, state, visible):
+        if visible:
+            self._visible.add(state)
+        else:
+            self._visible.discard(state)
+        if self._layer_valid():
+            self._apply_visibility()
+            self._layer.triggerRepaint()
+
+    def _apply_visibility(self):
+        renderer = self._layer.renderer()
+        if not isinstance(renderer, QgsCategorizedSymbolRenderer):
+            return
+        for i, cat in enumerate(renderer.categories()):
+            renderer.updateCategoryRenderState(i, cat.value() in self._visible)
+
     def _style(self):
         try:
             cats = [QgsRendererCategory(state, self._marker(color), state)
                     for state, color in STATE_COLORS]
             self._layer.setRenderer(
                 QgsCategorizedSymbolRenderer("state", cats))
+            self._apply_visibility()
         except Exception as exc:  # noqa: BLE001 - styling must never block data
             QgsMessageLog.logMessage(f"styling skipped: {exc}", "Outfall UK",
                                      Qgis.MessageLevel.Warning)
 
     def _marker(self, color):
         svg = QgsSvgMarkerSymbolLayer(_DROP_SVG)
-        svg.setSize(5)
+        svg.setSize(4)
         svg.setFillColor(QColor(color))
         svg.setStrokeColor(QColor("#333333"))
         svg.setStrokeWidth(0.2)

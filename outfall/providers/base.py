@@ -43,10 +43,16 @@ class SiteSource(QObject):
     id = "base"
     label = "Abstract source"
     nation = ""
+    # When paginate is True, url(offset) is called for each page and the parsed
+    # ArcGIS "features" arrays are accumulated across pages before parse() runs.
+    paginate = False
+    page_size = 2000
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._reply = None
+        self._offset = 0
+        self._accum = []
 
     # --- interface -------------------------------------------------------
     def url(self):
@@ -58,6 +64,8 @@ class SiteSource(QObject):
 
     def start(self):
         self.status_changed.emit(f"{self.nation}: loading…")
+        self._offset = 0
+        self._accum = []
         self._get(self.url())
 
     def stop(self):
@@ -92,11 +100,22 @@ class SiteSource(QObject):
         except (ValueError, UnicodeDecodeError):
             self.error.emit(f"{self.nation}: could not read the response")
             return
+
+        if self.paginate:
+            page = doc.get("features") or []
+            self._accum.extend(page)
+            more = doc.get("exceededTransferLimit") or len(page) >= self.page_size
+            if more and page:
+                self._offset += self.page_size
+                self._get(self.url())
+                return
+            doc = {"features": self._accum}
+
         try:
             sites = self.parse(doc)
         except Exception as exc:  # noqa: BLE001 - one bad source must not break the rest
             self.error.emit(f"{self.nation}: {exc}")
             return
-        dbg(f"{self.nation}: {len(sites)} bathing waters")
-        self.status_changed.emit(f"{self.nation}: {len(sites)} sites")
+        dbg(f"{self.nation}: {len(sites)} records")
+        self.status_changed.emit(f"{self.nation}: {len(sites)}")
         self.sites_update.emit(self.id, sites)
