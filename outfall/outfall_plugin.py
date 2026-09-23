@@ -13,7 +13,8 @@ from qgis.PyQt.QtCore import Qt, QTimer
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import (
     QAction, QDockWidget, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-    QCheckBox, QPushButton, QGroupBox, QPlainTextEdit,
+    QCheckBox, QPushButton, QToolButton, QGroupBox, QPlainTextEdit,
+    QDialog, QDialogButtonBox,
 )
 from qgis.core import QgsMessageLog, Qgis
 from qgis.gui import QgsCollapsibleGroupBox
@@ -22,6 +23,7 @@ from .providers import SOURCES
 from .providers.spills import spill_sources
 from .sites import SiteStore, MODE_RATING, MODE_RISK
 from .spills import SpillStore
+from .sources_info import nation_html
 from ._debug import dbg, add_sink, clear_sinks
 
 REFRESH_MS = 30 * 60 * 1000   # re-fetch every half hour (forecasts update daily)
@@ -122,12 +124,21 @@ class OutfallPlugin:
         nat_box = QGroupBox("Nations")
         nat_layout = QVBoxLayout(nat_box)
         for cls in SOURCES:
+            row = QHBoxLayout()
             cb = QCheckBox(cls.nation)
             cb.setChecked(True)
             cb.toggled.connect(
                 lambda on, cid=cls.id: self._on_nation_toggled(cid, on))
             self.checks[cls.id] = cb
-            nat_layout.addWidget(cb)
+            row.addWidget(cb, 1)
+            info = QToolButton()
+            info.setText("ⓘ")
+            info.setAutoRaise(True)
+            info.setToolTip(f"Data sources for {cls.nation}")
+            info.clicked.connect(
+                lambda _=False, cid=cls.id: self._show_sources(cid))
+            row.addWidget(info, 0)
+            nat_layout.addLayout(row)
         layout.addWidget(nat_box)
 
         spill_box = QGroupBox("Live storm overflows (sewage spills)")
@@ -181,6 +192,26 @@ class OutfallPlugin:
     def _log_line(self, line):
         if self.log_view is not None:
             self.log_view.appendPlainText(line)
+
+    def _show_sources(self, nation_id):
+        info = nation_html(nation_id)
+        if info is None:
+            return
+        title, body = info
+        dlg = QDialog(self.iface.mainWindow())
+        dlg.setWindowTitle(f"Data sources — {title}")
+        dlg.setMinimumWidth(430)
+        v = QVBoxLayout(dlg)
+        lbl = QLabel(body)
+        lbl.setTextFormat(Qt.TextFormat.RichText)
+        lbl.setWordWrap(True)
+        lbl.setOpenExternalLinks(True)
+        v.addWidget(lbl)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dlg.reject)
+        buttons.accepted.connect(dlg.accept)
+        v.addWidget(buttons)
+        dlg.exec()
 
     # --- loading ---------------------------------------------------------
     def _load(self):
