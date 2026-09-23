@@ -30,7 +30,7 @@ identify — but where those stream moving things, Outfall UK monitors places:
 ## Features
 
 - **Whole-UK coverage** — ~700 designated bathing waters across all four nations, from one panel.
-- **Live sewage spills** — a second layer showing **every monitored storm overflow** (~20,000) coloured by state — **discharging now** (red), **recently discharged**, last 48h (orange), **not discharging** (green), **offline** (grey) or **no data** (dark grey) — near-real-time (within about an hour) from all English and Welsh water companies and Scottish Water, the same feeds behind the [National Storm Overflow Hub](https://www.streamwaterdata.co.uk/pages/the-national-storm-overflow-hub). A per-state filter shows or hides each state, like the Surfers Against Sewage Live Sewage Map.
+- **Live sewage spills** — a second layer showing **every monitored storm overflow** (~20,000) drawn as filled circles coloured by state — **discharging now**, **recently discharged** (last 48h), **not discharging**, **offline** or **no data** — near-real-time (within about an hour) from all English and Welsh water companies and Scottish Water, the same feeds behind the [National Storm Overflow Hub](https://www.streamwaterdata.co.uk/pages/the-national-storm-overflow-hub). The circle symbols and colours match the Surfers Against Sewage Live Sewage Map.
 - **Free and keyless** — official open data, no account or API key.
 - **Colour by rating or risk** — switch bathing waters between the **annual classification** (Excellent, Good, Sufficient, Poor) and, where published, **today's short-term pollution-risk forecast** (normal vs increased risk).
 - **Toggle nations** — show or hide England, Wales, Scotland and Northern Ireland independently.
@@ -88,7 +88,7 @@ discharging now.
 1. Open the **Outfall UK** panel — every UK bathing water loads onto the map.
 2. Use **Colour by** to switch between the annual rating and today's pollution risk.
 3. Tick or untick a **nation** to show or hide it.
-4. Tick **Show storm overflows** to add the live storm-overflow layer (~20,000 outfalls); use the per-state checkboxes to show or hide Discharging, Recently discharged, Not discharging, Offline and No Data.
+4. Tick **Show storm overflows** to add the live storm-overflow layer (~20,000 outfalls), coloured by state exactly like the SAS Live Sewage Map.
 5. **Click** a site or overflow to see its detail — bathing waters show rating, risk, operator and profile link; overflows show status, company and receiving watercourse.
 
 ## Credits

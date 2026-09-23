@@ -22,7 +22,7 @@ from qgis.gui import QgsCollapsibleGroupBox
 from .providers import SOURCES
 from .providers.spills import spill_sources
 from .sites import SiteStore, MODE_RATING, MODE_RISK
-from .spills import SpillStore, STATE_COLORS
+from .spills import SpillStore
 from .sources_info import nation_html, spills_html
 from ._debug import dbg, add_sink, clear_sinks
 
@@ -43,7 +43,6 @@ class OutfallPlugin:
         self.timer = None
         self.cbo_mode = None
         self.chk_spills = None
-        self.state_checks = {}
         self.lbl_status = None
         self.lbl_spills = None
         self.log_view = None
@@ -156,18 +155,6 @@ class OutfallPlugin:
         spill_row.addWidget(spill_info, 0)
         spill_layout.addLayout(spill_row)
 
-        # per-state filter (like the SAS map): one checkbox per discharge state
-        self.state_checks = {}
-        for state, color in STATE_COLORS:
-            cb = QCheckBox(state)
-            cb.setChecked(True)
-            cb.setEnabled(False)
-            cb.setStyleSheet(f"QCheckBox {{ color: {color}; }}")
-            cb.toggled.connect(
-                lambda on, st=state: self.spill_store.set_state_visible(st, on))
-            self.state_checks[state] = cb
-            spill_layout.addWidget(cb)
-
         self.lbl_spills = QLabel("")
         self.lbl_spills.setWordWrap(True)
         self.lbl_spills.setStyleSheet("color: gray;")
@@ -278,8 +265,6 @@ class OutfallPlugin:
         self._update_status()
 
     def _on_spills_toggled(self, on):
-        for cb in self.state_checks.values():
-            cb.setEnabled(on)
         if on:
             self._load_spills()
             self._ensure_timer()

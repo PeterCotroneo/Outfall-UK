@@ -6,26 +6,25 @@ company loads, refreshes, or is switched off. Individual states can be shown or
 hidden (the panel's filter) without refetching.
 """
 
-import os
-
 from qgis.PyQt.QtCore import QVariant
 from qgis.PyQt.QtGui import QColor
 from qgis.core import (
     QgsVectorLayer, QgsFeature, QgsField, QgsFields, QgsGeometry, QgsPointXY,
-    QgsProject, QgsMarkerSymbol, QgsSvgMarkerSymbolLayer,
+    QgsProject, QgsMarkerSymbol, QgsSimpleMarkerSymbolLayer,
     QgsCategorizedSymbolRenderer, QgsRendererCategory, QgsMessageLog, Qgis,
 )
 
 LAYER_NAME = "Outfall UK — Storm Overflows"
-_DROP_SVG = os.path.join(os.path.dirname(__file__), "drop.svg")
 
-# Discharge state -> colour, in legend order (mirrors the SAS Live Sewage Map).
+# Discharge state -> colour, sampled from the Surfers Against Sewage Live Sewage
+# Map legend so the symbols match it exactly. Rendered as filled circles, as SAS
+# does.
 STATE_COLORS = [
-    ("Discharging", "#d7191c"),          # red — spilling now
-    ("Recently discharged", "#fdae61"),  # orange — stopped in last 48h
-    ("Not discharging", "#1a9641"),      # green — monitored, dry
-    ("Offline", "#9e9e9e"),              # grey — monitor offline
-    ("No Data", "#4d4d4d"),              # dark grey — status unknown
+    ("Discharging", "#de5f5f"),          # coral red — spilling now
+    ("Recently discharged", "#c9982e"),  # amber — stopped in last 48h
+    ("Not discharging", "#5cb7a0"),      # teal — monitored, dry
+    ("Offline", "#939aa2"),              # blue-grey — monitor offline
+    ("No Data", "#3b3b3b"),              # charcoal — status unknown
 ]
 
 _FIELDS = [
@@ -52,7 +51,6 @@ class SpillStore:
     def __init__(self):
         self._layer = None
         self._by_company = {}   # source id -> list of spill dicts
-        self._visible = {state for state, _c in STATE_COLORS}
 
     # --- layer lifecycle -------------------------------------------------
     def ensure_layer(self):
@@ -132,40 +130,24 @@ class SpillStore:
         self._layer.updateExtents()
         self._layer.triggerRepaint()
 
-    # --- styling / filter ------------------------------------------------
-    def set_state_visible(self, state, visible):
-        if visible:
-            self._visible.add(state)
-        else:
-            self._visible.discard(state)
-        if self._layer_valid():
-            self._apply_visibility()
-            self._layer.triggerRepaint()
-
-    def _apply_visibility(self):
-        renderer = self._layer.renderer()
-        if not isinstance(renderer, QgsCategorizedSymbolRenderer):
-            return
-        for i, cat in enumerate(renderer.categories()):
-            renderer.updateCategoryRenderState(i, cat.value() in self._visible)
-
+    # --- styling ---------------------------------------------------------
     def _style(self):
         try:
             cats = [QgsRendererCategory(state, self._marker(color), state)
                     for state, color in STATE_COLORS]
             self._layer.setRenderer(
                 QgsCategorizedSymbolRenderer("state", cats))
-            self._apply_visibility()
         except Exception as exc:  # noqa: BLE001 - styling must never block data
             QgsMessageLog.logMessage(f"styling skipped: {exc}", "Outfall UK",
                                      Qgis.MessageLevel.Warning)
 
     def _marker(self, color):
-        svg = QgsSvgMarkerSymbolLayer(_DROP_SVG)
-        svg.setSize(4)
-        svg.setFillColor(QColor(color))
-        svg.setStrokeColor(QColor("#333333"))
-        svg.setStrokeWidth(0.2)
+        # Filled circle, matching the SAS Live Sewage Map.
+        circle = QgsSimpleMarkerSymbolLayer()   # default shape is a circle
+        circle.setSize(2.4)
+        circle.setColor(QColor(color))
+        circle.setStrokeColor(QColor(0, 0, 0, 60))
+        circle.setStrokeWidth(0.2)
         sym = QgsMarkerSymbol()
-        sym.changeSymbolLayer(0, svg)
+        sym.changeSymbolLayer(0, circle)
         return sym

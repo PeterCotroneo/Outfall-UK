@@ -89,9 +89,10 @@ _SPILLS_HTML = (
     "live status), so these appear as <b>No Data</b>."
     "<br/><br/>"
     "<b>What the colours mean</b><br/>"
-    "Red — discharging now · Orange — recently discharged (last 48h) · "
-    "Green — monitored, not discharging · Grey — monitor offline · "
-    "Dark grey — no data."
+    "Red — discharging now · Amber — recently discharged (last 48h) · "
+    "Teal — monitored, not discharging · Blue-grey — monitor offline · "
+    "Charcoal — no data. (Colours and circle symbols match the SAS Live "
+    "Sewage Map.)"
     "<br/><br/>"
     '<p style="color:gray">This is near-real-time operational data that has '
     "<b>not</b> been through the Environment Agency's regulatory audit — treat "
