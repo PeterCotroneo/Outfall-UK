@@ -23,7 +23,7 @@ from .providers import SOURCES
 from .providers.spills import spill_sources
 from .sites import SiteStore, MODE_RATING, MODE_RISK
 from .spills import SpillStore
-from .sources_info import nation_html
+from .sources_info import nation_html, spills_html
 from ._debug import dbg, add_sink, clear_sinks
 
 REFRESH_MS = 30 * 60 * 1000   # re-fetch every half hour (forecasts update daily)
@@ -143,9 +143,17 @@ class OutfallPlugin:
 
         spill_box = QGroupBox("Live storm overflows (sewage spills)")
         spill_layout = QVBoxLayout(spill_box)
+        spill_row = QHBoxLayout()
         self.chk_spills = QCheckBox("Show overflows discharging now")
         self.chk_spills.toggled.connect(self._on_spills_toggled)
-        spill_layout.addWidget(self.chk_spills)
+        spill_row.addWidget(self.chk_spills, 1)
+        spill_info = QToolButton()
+        spill_info.setText("ⓘ")
+        spill_info.setAutoRaise(True)
+        spill_info.setToolTip("Live storm-overflow data sources")
+        spill_info.clicked.connect(lambda _=False: self._show_info(*spills_html()))
+        spill_row.addWidget(spill_info, 0)
+        spill_layout.addLayout(spill_row)
         self.lbl_spills = QLabel("")
         self.lbl_spills.setWordWrap(True)
         self.lbl_spills.setStyleSheet("color: gray;")
@@ -159,14 +167,6 @@ class OutfallPlugin:
         self.lbl_status = QLabel("Idle")
         self.lbl_status.setWordWrap(True)
         layout.addWidget(self.lbl_status)
-
-        note = QLabel(
-            "Ratings and forecasts come from the Environment Agency, Natural "
-            "Resources Wales, SEPA and DAERA. Short-term risk forecasts are "
-            "published for England and Wales in the bathing season.")
-        note.setWordWrap(True)
-        note.setStyleSheet("color: gray;")
-        layout.addWidget(note)
 
         log_box = QgsCollapsibleGroupBox("Activity Log")
         log_box.setCollapsed(True)
@@ -195,9 +195,10 @@ class OutfallPlugin:
 
     def _show_sources(self, nation_id):
         info = nation_html(nation_id)
-        if info is None:
-            return
-        title, body = info
+        if info is not None:
+            self._show_info(*info)
+
+    def _show_info(self, title, body):
         dlg = QDialog(self.iface.mainWindow())
         dlg.setWindowTitle(f"Data sources — {title}")
         dlg.setMinimumWidth(430)
