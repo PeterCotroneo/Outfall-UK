@@ -46,10 +46,16 @@ _FIELDMAP = {
     "scot": {"status": "STATUS_DESCRIPTION", "start": "START_DATETIME",
              "end": "END_DATETIME", "water": "RECEIVING_WATER",
              "name": "ASSET_NAME", "id": "ASSET_ID"},
+    # Northern Ireland publishes outfall *locations* only — no live status —
+    # so every NI overflow is classified "No Data".
+    "ni": {"status": None, "start": None, "end": None, "water": "Water_Body",
+           "name": "Name", "id": "fid"},
 }
 
 
 def _classify(kind, attrs, fm, now_ms):
+    if kind == "ni":
+        return "No Data"
     value = attrs.get(fm["status"])
     if kind in ("int", "int_lc"):
         if value == 1:
@@ -89,7 +95,8 @@ class StreamSpillSource(SiteSource):
 
     paginate = True
 
-    def __init__(self, key, company, service_url, kind, layer=0, parent=None):
+    def __init__(self, key, company, service_url, kind, where="1=1", layer=0,
+                 parent=None):
         super().__init__(parent)
         self.id = f"spill:{key}"
         self.label = company
@@ -97,11 +104,12 @@ class StreamSpillSource(SiteSource):
         self._company = company
         self._service = service_url.rstrip("/")
         self._kind = kind
+        self._where = where
         self._layer = layer
 
     def url(self):
         params = urllib.parse.urlencode({
-            "where": "1=1",
+            "where": self._where,
             "outFields": "*",
             "outSR": "4326",
             "returnGeometry": "true",
@@ -135,45 +143,50 @@ class StreamSpillSource(SiteSource):
         return out
 
 
-# (key, company, service url, kind)
+# (key, company, service url, kind, where)
+_ALL = "1=1"
 _COMPANIES = [
     ("anglian", "Anglian Water",
      "https://services3.arcgis.com/VCOY1atHWVcDlvlJ/arcgis/rest/services/"
-     "stream_service_outfall_locations_view/FeatureServer", "int"),
+     "stream_service_outfall_locations_view/FeatureServer", "int", _ALL),
     ("northumbrian", "Northumbrian Water",
      "https://services-eu1.arcgis.com/MSNNjkZ51iVh8yBj/arcgis/rest/services/"
-     "Northumbrian_Water_Storm_Overflow_Activity_2_view/FeatureServer", "int"),
+     "Northumbrian_Water_Storm_Overflow_Activity_2_view/FeatureServer", "int", _ALL),
     ("severntrent", "Severn Trent Water",
      "https://services1.arcgis.com/NO7lTIlnxRMMG9Gw/arcgis/rest/services/"
-     "Severn_Trent_Water_Storm_Overflow_Activity/FeatureServer", "int"),
+     "Severn_Trent_Water_Storm_Overflow_Activity/FeatureServer", "int", _ALL),
     ("southern", "Southern Water",
      "https://services-eu1.arcgis.com/6qJmARkS2dt2IjVA/arcgis/rest/services/"
-     "SouthernWater_StormOverflowActivity_PROD_view/FeatureServer", "int"),
+     "SouthernWater_StormOverflowActivity_PROD_view/FeatureServer", "int", _ALL),
     ("thames", "Thames Water",
      "https://services2.arcgis.com/g6o32ZDQ33GpCIu3/arcgis/rest/services/"
-     "Thames_Water_Storm_Overflow_Activity_(Production)_view/FeatureServer", "int"),
+     "Thames_Water_Storm_Overflow_Activity_(Production)_view/FeatureServer", "int", _ALL),
     ("unitedutilities", "United Utilities",
      "https://services5.arcgis.com/5eoLvR0f8HKb7HWP/arcgis/rest/services/"
-     "United_Utilities_Storm_Overflow_Activity/FeatureServer", "int"),
+     "United_Utilities_Storm_Overflow_Activity/FeatureServer", "int", _ALL),
     ("wessex", "Wessex Water",
      "https://services.arcgis.com/3SZ6e0uCvPROr4mS/arcgis/rest/services/"
-     "Wessex_Water_Storm_Overflow_Activity/FeatureServer", "int"),
+     "Wessex_Water_Storm_Overflow_Activity/FeatureServer", "int", _ALL),
     ("yorkshire", "Yorkshire Water",
      "https://services-eu1.arcgis.com/1WqkK5cDKUbF0CkH/arcgis/rest/services/"
-     "Yorkshire_Water_Storm_Overflow_Activity/FeatureServer", "int"),
+     "Yorkshire_Water_Storm_Overflow_Activity/FeatureServer", "int", _ALL),
     ("southwest", "South West Water",
      "https://services-eu1.arcgis.com/OMdMOtfhATJPcHe3/arcgis/rest/services/"
-     "NEH_outlets_PROD/FeatureServer", "int_lc"),
+     "NEH_outlets_PROD/FeatureServer", "int_lc", _ALL),
     ("welsh", "Welsh Water (Dŵr Cymru)",
      "https://services3.arcgis.com/KLNF7YxtENPLYVey/arcgis/rest/services/"
-     "Spill_Prod_Welsh/FeatureServer", "welsh"),
+     "Spill_Prod_Welsh/FeatureServer", "welsh", _ALL),
     ("scottish", "Scottish Water",
      "https://services3.arcgis.com/Bb8lfThdhugyc4G3/arcgis/rest/services/"
-     "Scottish_Water_Storm_Overflow_Activity/FeatureServer", "scot"),
+     "Scottish_Water_Storm_Overflow_Activity/FeatureServer", "scot", _ALL),
+    # Northern Ireland: locations only (no live status), so all show as "No Data".
+    ("ni", "NI Water (locations only)",
+     "https://services3.arcgis.com/Bb8lfThdhugyc4G3/arcgis/rest/services/"
+     "NI_discharges/FeatureServer", "ni", "Overflow_T='Storm Overflow'"),
 ]
 
 
 def spill_sources():
     """Return a fresh StreamSpillSource for every company."""
-    return [StreamSpillSource(key, company, url, kind)
-            for key, company, url, kind in _COMPANIES]
+    return [StreamSpillSource(key, company, url, kind, where)
+            for key, company, url, kind, where in _COMPANIES]

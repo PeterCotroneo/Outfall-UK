@@ -62,10 +62,12 @@ NATION_SOURCES = {
             "Department of Agriculture, Environment and Rural Affairs (DAERA), "
             "via its open ArcGIS feature service — annual classification."
             "<br/><br/>"
-            "<b>Live storm overflows</b><br/>"
-            "Not available — NI Water does not currently publish a comparable "
-            "near-real-time storm-overflow feed, so Northern Ireland is not in "
-            "the live spills layer."
+            "<b>Storm overflows</b><br/>"
+            "Locations only. NI Water is the only UK utility that does not yet "
+            "publish live discharge status, so Northern Ireland's storm "
+            "overflows appear as <b>No Data</b> (their locations, no live "
+            "spill state), from the published NI Water / DAERA discharge "
+            "locations."
         ),
     },
 }
@@ -82,7 +84,9 @@ _SPILLS_HTML = (
     "England — Anglian, Northumbrian, Severn Trent, Southern, Thames, United "
     "Utilities, Wessex, Yorkshire and South West Water.<br/>"
     "Wales — Welsh Water (Dŵr Cymru).<br/>"
-    "Scotland — Scottish Water."
+    "Scotland — Scottish Water.<br/>"
+    "Northern Ireland — NI Water publishes overflow <i>locations</i> only (no "
+    "live status), so these appear as <b>No Data</b>."
     "<br/><br/>"
     "<b>What the colours mean</b><br/>"
     "Red — discharging now · Orange — recently discharged (last 48h) · "

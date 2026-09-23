@@ -70,8 +70,8 @@ behind Water UK's National Storm Overflow Hub:
 Companies aim to report a spill within about an hour of an overflow starting.
 This is near-real-time operational data that has **not** been through the
 Environment Agency's regulatory audit; treat it as indicative. Northern Ireland
-(NI Water) does not currently publish a comparable live feed, so it is not
-included in the spills layer. The layer shows every monitored outfall coloured by
+(NI Water) is the only UK utility that does not publish live discharge status, so
+its storm overflows appear as **No Data** — their locations only. The layer shows every monitored outfall coloured by
 its current state; use the per-state filter to focus on, say, only those
 discharging now.
 
