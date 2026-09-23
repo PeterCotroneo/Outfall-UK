@@ -144,7 +144,7 @@ class SpillStore:
     def _marker(self, color):
         # Filled circle, matching the SAS Live Sewage Map.
         circle = QgsSimpleMarkerSymbolLayer()   # default shape is a circle
-        circle.setSize(2.4)
+        circle.setSize(1.5)
         circle.setColor(QColor(color))
         circle.setStrokeColor(QColor(0, 0, 0, 60))
         circle.setStrokeWidth(0.2)

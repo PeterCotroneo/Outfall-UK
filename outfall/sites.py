@@ -64,7 +64,7 @@ class SiteStore:
     def __init__(self):
         self._layer = None
         self._by_source = {}   # source id -> list of site dicts
-        self._mode = MODE_RATING
+        self._mode = MODE_RISK
 
     # --- layer lifecycle -------------------------------------------------
     def ensure_layer(self):
@@ -168,7 +168,7 @@ class SiteStore:
 
     def _marker(self, color):
         svg = QgsSvgMarkerSymbolLayer(_DROP_SVG)
-        svg.setSize(5)
+        svg.setSize(3)
         svg.setFillColor(QColor(color))
         svg.setStrokeColor(QColor("#333333"))
         svg.setStrokeWidth(0.2)
