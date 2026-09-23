@@ -72,9 +72,10 @@ Companies aim to report a spill within about an hour of an overflow starting.
 This is near-real-time operational data that has **not** been through the
 Environment Agency's regulatory audit; treat it as indicative. Northern Ireland
 (NI Water) is the only UK utility that does not publish live discharge status, so
-its storm overflows appear as **No Data** — their locations only. The layer shows every monitored outfall coloured by
-its current state; use the per-state filter to focus on, say, only those
-discharging now.
+its storm overflows appear as **No Data** — their locations only. The layer shows
+every monitored outfall as a filled circle coloured by its current state. To show
+only some states (say, just those discharging now), toggle the categories in
+QGIS's own Layers panel legend.
 
 ## Install
 
