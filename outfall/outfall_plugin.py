@@ -283,8 +283,11 @@ class OutfallPlugin:
         self.store.set_mode(self.cbo_mode.currentData())
 
     def _on_nation_toggled(self, source_id, on):
+        cls = next((c for c in SOURCES if c.id == source_id), None)
+        # the nation filter applies to the storm-overflow layer too
+        if cls is not None:
+            self.spill_store.set_nation_visible(cls.nation, on)
         if on:
-            cls = next((c for c in SOURCES if c.id == source_id), None)
             if cls is not None:
                 self.store.ensure_layer()
                 self._start_source(cls)
@@ -293,7 +296,7 @@ class OutfallPlugin:
             if src is not None:
                 src.stop()
             self.store.clear_source(source_id)
-            self._update_status()
+        self._update_status()
 
     def _update_status(self, text=None):
         self._update_spill_status()

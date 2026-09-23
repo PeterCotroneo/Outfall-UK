@@ -51,6 +51,7 @@ class SpillStore:
     def __init__(self):
         self._layer = None
         self._by_company = {}   # source id -> list of spill dicts
+        self._hidden = set()    # nation display names hidden by the nation filter
 
     # --- layer lifecycle -------------------------------------------------
     def ensure_layer(self):
@@ -97,10 +98,22 @@ class SpillStore:
         self._by_company.clear()
         self._rebuild()
 
+    def set_nation_visible(self, nation, visible):
+        """Show or hide a whole nation's overflows (driven by the nation
+        checkboxes), without refetching."""
+        changed = (nation in self._hidden) == visible
+        if visible:
+            self._hidden.discard(nation)
+        else:
+            self._hidden.add(nation)
+        if changed:
+            self._rebuild()
+
     def _all(self):
         for spills in self._by_company.values():
             for s in spills:
-                yield s
+                if s.get("nation") not in self._hidden:
+                    yield s
 
     def count(self):
         return sum(len(v) for v in self._by_company.values())

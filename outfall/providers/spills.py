@@ -95,13 +95,14 @@ class StreamSpillSource(SiteSource):
 
     paginate = True
 
-    def __init__(self, key, company, service_url, kind, where="1=1", layer=0,
-                 parent=None):
+    def __init__(self, key, company, service_url, kind, region, where="1=1",
+                 layer=0, parent=None):
         super().__init__(parent)
         self.id = f"spill:{key}"
         self.label = company
         self.nation = company          # used only in status messages
         self._company = company
+        self._region = region          # England / Wales / Scotland / Northern Ireland
         self._service = service_url.rstrip("/")
         self._kind = kind
         self._where = where
@@ -135,6 +136,7 @@ class StreamSpillSource(SiteSource):
                 "id": f"{self.id}:{a.get(fm['id'])}",
                 "lat": float(lat), "lon": float(lon),
                 "company": self._company,
+                "nation": self._region,
                 "name": str(name),
                 "state": state,
                 "water": str(a.get(fm["water"]) or ""),
@@ -186,7 +188,16 @@ _COMPANIES = [
 ]
 
 
+# company key -> the nation whose checkbox shows/hides it
+_NATION = {
+    "anglian": "England", "northumbrian": "England", "severntrent": "England",
+    "southern": "England", "thames": "England", "unitedutilities": "England",
+    "wessex": "England", "yorkshire": "England", "southwest": "England",
+    "welsh": "Wales", "scottish": "Scotland", "ni": "Northern Ireland",
+}
+
+
 def spill_sources():
     """Return a fresh StreamSpillSource for every company."""
-    return [StreamSpillSource(key, company, url, kind, where)
+    return [StreamSpillSource(key, company, url, kind, _NATION[key], where)
             for key, company, url, kind, where in _COMPANIES]
